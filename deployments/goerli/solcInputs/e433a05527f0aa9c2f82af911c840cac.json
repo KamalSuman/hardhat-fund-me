@@ -1,0 +1,41 @@
+{
+  "language": "Solidity",
+  "sources": {
+    "contracts/FundMe.sol": {
+      "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.8;\n\nimport \"./PriceConvertor.sol\";\n\ncontract FundMe {\n    // fund me contract\n    using PriceConvertor for uint256;\n    uint256 public minimumUsd = 50;\n\n    address[] public funders; /// to keep the address of funders who are donating to our contract\n    mapping(address => uint256) public addressToAmountFunded;\n\n    function fund() public payable {\n        // making the function payable by adding this keyword payable now it can get value of value button in the ide\n\n        require(\n            msg.value.getConversionRate(priceFeed) >= minimumUsd * 1e18,\n            \"Didn't send enough\"\n        ); // if minimumUSD<50 then it will revert the changes changes i.e. if we have done any computation before require function then revert will undo the change\n        funders.push(msg.sender); // just like msg.value gives the amount of money msg.sender gives the address of sender\n        addressToAmountFunded[msg.sender] = msg.value;\n    }\n\n    address public owner;\n    AggregatorV3Interface public priceFeed;\n\n    // making constructor to get owner address because it will give you the deployer address when it is deployed.\n    constructor(address priceFeedAddress) {\n        owner = msg.sender; // i.e. your wallet address\n        priceFeed = AggregatorV3Interface(priceFeedAddress);\n    }\n\n    // creating a withdraw function to reset the amount to 0 which is sent by funder\n\n    function withdraw() public onlyOwner {\n        // here\n\n        for (\n            uint256 funderIndex = 0;\n            funderIndex < funders.length;\n            funderIndex++\n        ) {\n            addressToAmountFunded[funders[funderIndex]] = 0;\n        }\n        // Reseting the funders array\n        funders = new address[](0); // 0 elements to start with i.e. totally reseting the array\n        (bool sendSuccess, ) = payable(msg.sender).call{\n            value: address(this).balance\n        }(\"\");\n        require(sendSuccess, \"Transaction Failed\");\n    }\n\n    // modifier is basically a piece a code which is basically used to modify function i.e. in this modifier first the require statement will run and check whether it is the real owner or not\n    modifier onlyOwner() {\n        require(msg.sender == owner, \"You are not an owner\");\n        _; // it represents the whole code\n    }\n\n    fallback() external payable {\n        fund();\n    }\n\n    receive() external payable {\n        fund();\n    }\n}\n"
+    },
+    "contracts/PriceConvertor.sol": {
+      "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.7;\nimport \"@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol\";\n\nlibrary PriceConvertor {\n    function getPrice(AggregatorV3Interface priceFeed)\n        internal\n        view\n        returns (uint256)\n    {\n        // Address of the contract ---> It can be found in the chain-link doc in the data feed section of current addresses\n        // Address ----> 0xD4a33860578De61DBAbDc8BFdb98FD742fA7028e\n        // ABI (Application Binary Interface) ---> When you need to use the Code of another contract to use some of it's functions then you copy the interface of that contract into your contract to fetch those functionalities\n        // For that interface either you can copy the whole Interface or can just import it using the import keyword along with the path\n        //this is the most easy way to interact with contract that are outside i.e. we use the ABI with address to get the whole contract.\n        (, int256 price, , , ) = priceFeed.latestRoundData();\n        return uint256(price * 1e10); // 1316059946540000000000 it will return this much value so conversion will be ans/1e18;\n    }\n\n    // function getVersion() internal view returns (uint256) {\n    //     AggregatorV3Interface priceFeed = AggregatorV3Interface(\n    //         0xD4a33860578De61DBAbDc8BFdb98FD742fA7028e\n    //     ); //this is the most easy way to interact with contract that are outside i.e. we use the ABI with address to get the whole contract.\n    //     return priceFeed.version();\n    // }\n\n    function getConversionRate(\n        uint256 ethAmount,\n        AggregatorV3Interface priceFeed\n    ) internal view returns (uint256) {\n        uint256 ethPrice = getPrice(priceFeed);\n        uint256 ethAmountInUsd = (ethPrice * ethAmount) / 1e18;\n        return ethAmountInUsd;\n    }\n}\n"
+    },
+    "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol": {
+      "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.0;\n\ninterface AggregatorV3Interface {\n  function decimals() external view returns (uint8);\n\n  function description() external view returns (string memory);\n\n  function version() external view returns (uint256);\n\n  function getRoundData(uint80 _roundId)\n    external\n    view\n    returns (\n      uint80 roundId,\n      int256 answer,\n      uint256 startedAt,\n      uint256 updatedAt,\n      uint80 answeredInRound\n    );\n\n  function latestRoundData()\n    external\n    view\n    returns (\n      uint80 roundId,\n      int256 answer,\n      uint256 startedAt,\n      uint256 updatedAt,\n      uint80 answeredInRound\n    );\n}\n"
+    }
+  },
+  "settings": {
+    "optimizer": {
+      "enabled": false,
+      "runs": 200
+    },
+    "outputSelection": {
+      "*": {
+        "*": [
+          "abi",
+          "evm.bytecode",
+          "evm.deployedBytecode",
+          "evm.methodIdentifiers",
+          "metadata",
+          "devdoc",
+          "userdoc",
+          "storageLayout",
+          "evm.gasEstimates"
+        ],
+        "": [
+          "ast"
+        ]
+      }
+    },
+    "metadata": {
+      "useLiteralContent": true
+    }
+  }
+}
